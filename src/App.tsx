@@ -14,7 +14,7 @@ interface HistoryItem {
 
 export default function App() {
   const [sku, setSku] = useState("");
-  const [quantityToAdjust, setQuantityToAdjust] = useState("");
+  const [quantityToAdjust, setQuantityToAdjust] = useState("1");
   const [currentStock, setCurrentStock] = useState<number | null>(null);
   const [productName, setProductName] = useState<string | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -46,6 +46,7 @@ export default function App() {
         setCurrentStock(data.quantity);
       } catch (error) {
         setProductName("Erro ao consultar servidor");
+        console.log(`Error: ${error}`);
       } finally {
         setIsLoading(false);
       }
@@ -87,7 +88,7 @@ export default function App() {
 
       // Reset para o próximo BIP
       setSku("");
-      setQuantityToAdjust("");
+      setQuantityToAdjust("1");
       setProductName(null);
       setCurrentStock(null);
       setToast("Entrada registrada!");
@@ -102,7 +103,7 @@ export default function App() {
     setIsLoading(true);
     try {
       // Busca o saldo atual antes de subtrair
-      const response = await fetch(`http://localhost:8080/items/${item.sku}`);
+      const response = await fetch(`/api/items/${item.sku}`);
       const data = await response.json();
 
       const revertedTotal = data.quantity - item.quantityAdjusted;
@@ -111,9 +112,18 @@ export default function App() {
       if (success) {
         setHistory((prev) => prev.filter((h) => h.id !== item.id));
         setToast("Operação desfeita!");
+
+        // Reset para o próximo BIP
+        setSku("");
+        setQuantityToAdjust("1");
+        setProductName(null);
+        setCurrentStock(null);
+        setToast("Entrada registrada!");
+        skuInputRef.current?.focus(); // Devolve o foco para o leitor
       }
     } catch (error) {
       setToast("Falha ao desfazer");
+      console.log(`Error: ${error}`);
     } finally {
       setIsLoading(false);
     }
