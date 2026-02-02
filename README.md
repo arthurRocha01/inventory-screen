@@ -1,73 +1,54 @@
-# React + TypeScript + Vite
+# Inventory Screen - Interface de Gestão de Inventário
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+O Inventory Screen é uma interface moderna e responsiva projetada para tornar a atulalização de estoque rápida. O foco do projeto é oferecer uma experiência de usuário fluida para operações de busca, edição e monitoramento de itens em tempo real.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+A aplicação nasceu da necessidade de gerenciar grandes volumes de dados de inventário (SKUs) de forma intuitiva. A interface permite que gestores visualizem informações críticas e realizem atualizações rápidas, garantindo que o estoque físico e o digital estejam sempre em sincronia.
 
-## React Compiler
+## Escopo do Projeto
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Este repositório contém exclusivamente o **Frontend** da aplicação.
 
-## Expanding the ESLint configuration
+A arquitetura foi desenhada para ser totalmente desacoplada, funcionando como um cliente agnóstico que consome uma API REST independente. Toda a lógica de persistência, regras de negócio e validações de banco de dados residem em um serviço de backend separado.
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+## Stack
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+- **React**: Construção de componentes dinâmicos.
+- **TypeScript**: Segurança e previsibilidade no fluxo de dados.
+- **Vite**: Ferramenta de build otimizada para performance.
+- **Fetch API**: Integração assíncrona com serviços externos.
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+---
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+## Integração com API
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Para o funcionamento pleno, esta interface espera uma API que forneça os seguintes recursos:
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+- `GET /items`: Listagem de produtos.
+- `GET /items/{sku}`: Busca detalhada por identificador único.
+- `PUT /items/{sku}`: Atualização de dados cadastrais e preços.
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
+---
+
+## Integração com a API
+
+A interface está configurada para consumir os recursos da API hospedada no endereço abaixo:
+
+- **Endpoint Base:** `http://localhost:8080`
+- **Repositório da API:** https://github.com/arthurRocha01/product-information-service
+
+> **Nota:** Caso a API esteja rodando em um servidor de produção, altere a variável de ambiente no arquivo `vite.config.ts` para apontar para a URL correta.
+
+---
+
+## Como Executar
+
+1. Clone este repositório.
+2. Certifique-se de que o seu serviço de API local ou remoto esteja ativo.
+3. Instale as dependências: `npm install`.
+4. Inicie o ambiente de desenvolvimento: `npm run dev`.
+
+---
+
+Desenvolvido para máxima eficiência na gestão de dados.
