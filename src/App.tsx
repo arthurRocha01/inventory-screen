@@ -1,3 +1,4 @@
+// src/App.tsx
 import { useState, useEffect, useRef } from "react";
 import { Scan, Undo2, Loader2, Package } from "lucide-react";
 import { Card } from "./components/card";
@@ -5,130 +6,109 @@ import { Input } from "./components/input";
 import { Button } from "./components/button";
 import { Toast } from "./components/toast";
 
+// Importamos os serviços e as tipagens que extraímos!
+import {
+  fetchProductBySku,
+  updateProductPrice,
+  type ProductInfo,
+} from "./service/productService";
+
 interface HistoryItem {
   id: string;
+  productId: number;
   sku: string;
   description: string;
-  quantityAdjusted: number;
+  priceAdjusted: number;
+  oldPrice: number;
 }
 
 export default function App() {
   const [sku, setSku] = useState("");
-  const [quantityToAdjust, setQuantityToAdjust] = useState("1");
-  const [currentStock, setCurrentStock] = useState<number | null>(null);
-  const [productName, setProductName] = useState<string | null>(null);
+  const [priceToAdjust, setPriceToAdjust] = useState("1");
+  const [product, setProduct] = useState<ProductInfo | null>(null);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   const skuInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Busca produto e estoque atual (Debounce de 500ms)
   useEffect(() => {
-    const fetchProductDetails = async () => {
-      if (sku.trim().length < 3) {
-        setProductName(null);
-        setCurrentStock(null);
-        return;
-      }
+    const cleanSku = sku.trim();
+    if (cleanSku.length < 3) {
+      setProduct(null);
+      return;
+    }
 
-      setIsLoading(true);
+    const timer = setTimeout(async () => {
       try {
-        const response = await fetch(`/api/items/${sku.trim()}`);
-        if (!response.ok) {
-          setProductName("Produto não encontrado");
-          setCurrentStock(null);
-          return;
-        }
-        const data = await response.json();
-        console.log(data);
-        setProductName(data.description || data.name);
-        setCurrentStock(data.quantity);
-      } catch (error) {
-        setProductName("Erro ao consultar servidor");
-        console.log(`Error: ${error}`);
+        setIsLoading(true);
+        // Chamada limpa para o service
+        const data = await fetchProductBySku(cleanSku);
+        setProduct(data);
+      } catch {
+        setProduct(null);
+        setToast("Produto não encontrado");
       } finally {
         setIsLoading(false);
       }
-    };
+    }, 500);
 
-    const timer = setTimeout(fetchProductDetails, 500);
     return () => clearTimeout(timer);
   }, [sku]);
 
-  // Função genérica para atualizar o estoque na API
-  const updateStockAPI = async (targetSku: string, newTotal: number) => {
-    const response = await fetch(`api/items/${targetSku}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ quantity: newTotal }),
-    });
-    return response.ok;
-  };
-
   const handleUpdate = async () => {
-    const qty = parseInt(quantityToAdjust);
+    if (!product) return;
 
-    if (!sku.trim() || isNaN(qty) || qty < 1 || currentStock === null) return;
+    const priceAdjustment = parseFloat(priceToAdjust);
+    if (isNaN(priceAdjustment) || priceAdjustment <= 0) return;
 
     setIsLoading(true);
-    const newTotal = currentStock + qty;
-    const success = await updateStockAPI(sku.trim(), newTotal);
+    // Chamada limpa para o service
+    const success = await updateProductPrice(product.id, priceAdjustment);
 
     if (success) {
       setHistory((prev) => [
         {
           id: Date.now().toString(),
-          sku: sku.trim(),
-          description: productName || "Sem nome",
-          quantityAdjusted: qty,
+          productId: product.id,
+          sku,
+          description: product.name,
+          priceAdjusted: priceAdjustment,
+          oldPrice: product.price,
         },
         ...prev,
       ]);
 
-      // Reset para o próximo BIP
+      setProduct({ ...product, price: priceAdjustment });
       setSku("");
-      setQuantityToAdjust("1");
-      setProductName(null);
-      setCurrentStock(null);
-      setToast("Entrada registrada!");
-      skuInputRef.current?.focus(); // Devolve o foco para o leitor
+      setPriceToAdjust("1");
+      setToast("Preço atualizado com sucesso!");
+      skuInputRef.current?.focus();
     } else {
-      setToast("Erro ao atualizar estoque");
+      setToast("Erro ao atualizar o preço.");
     }
+
     setIsLoading(false);
   };
 
   const handleUndo = async (item: HistoryItem) => {
     setIsLoading(true);
-    try {
-      // Busca o saldo atual antes de subtrair
-      const response = await fetch(`/api/items/${item.sku}`);
-      const data = await response.json();
 
-      const revertedTotal = data.quantity - item.quantityAdjusted;
-      const success = await updateStockAPI(item.sku, revertedTotal);
+    // Chamada limpa para o service
+    const success = await updateProductPrice(item.productId, item.oldPrice);
 
-      if (success) {
-        setHistory((prev) => prev.filter((h) => h.id !== item.id));
-        setToast("Operação desfeita!");
-
-        // Reset para o próximo BIP
-        setSku("");
-        setQuantityToAdjust("1");
-        setProductName(null);
-        setCurrentStock(null);
-        setToast("Entrada registrada!");
-        skuInputRef.current?.focus(); // Devolve o foco para o leitor
+    if (success) {
+      setHistory((prev) => prev.filter((h) => h.id !== item.id));
+      if (product?.id === item.productId) {
+        setProduct({ ...product, price: item.oldPrice });
       }
-    } catch (error) {
-      setToast("Falha ao desfazer");
-      console.log(`Error: ${error}`);
-    } finally {
-      setIsLoading(false);
+      setToast("Operação desfeita com sucesso.");
+    } else {
+      setToast("Falha ao desfazer operação.");
     }
-  };
 
+    setIsLoading(false);
+  };
   return (
     <main className="min-h-screen flex items-start justify-center px-4 py-8 bg-stone-50">
       <div className="w-full max-w-6xl flex flex-col md:flex-row gap-8">
@@ -155,18 +135,22 @@ export default function App() {
                 )}
               </div>
 
-              {productName && (
+              {product?.name && (
                 <div
-                  className={`mt-4 p-3 rounded-lg border ${productName.includes("não") ? "bg-red-50 border-red-100" : "bg-slate-100 border-slate-200"}`}
+                  className={`mt-4 p-3 rounded-lg border ${
+                    product.name.toLowerCase().includes("não")
+                      ? "bg-red-50 border-red-100"
+                      : "bg-slate-100 border-slate-200"
+                  }`}
                 >
                   <p className="text-sm font-bold text-slate-800">
-                    {productName}
+                    {product.name}
                   </p>
-                  {currentStock !== null && (
+                  {product.price !== null && (
                     <div className="flex items-center gap-2 mt-1 text-slate-600">
                       <Package size={14} />
                       <span className="text-xs font-medium">
-                        Estoque Atual: {currentStock} un
+                        Preço Atual: R$ {product.price}
                       </span>
                     </div>
                   )}
@@ -176,25 +160,27 @@ export default function App() {
 
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-600">
-                Quantidade de Entrada
+                Preço a Ajustar
               </label>
               <Input
                 type="number"
-                value={quantityToAdjust}
-                onChange={(e) => setQuantityToAdjust(e.target.value)}
+                value={priceToAdjust}
+                onChange={(e) => setPriceToAdjust(e.target.value)}
                 placeholder="0"
                 className="text-lg font-bold text-emerald-700"
                 onKeyDown={(e) => e.key === "Enter" && handleUpdate()}
               />
             </div>
 
-            <Button
-              onClick={handleUpdate}
-              disabled={!currentStock || !quantityToAdjust || isLoading}
-              className="w-full h-12 text-lg font-bold bg-emerald-600 hover:bg-emerald-700"
-            >
-              Confirmar Entrada
-            </Button>
+            {product && (
+              <Button
+                onClick={handleUpdate}
+                disabled={!product.price || !priceToAdjust || isLoading}
+                className="w-full h-12 text-lg font-bold bg-emerald-600 hover:bg-emerald-700"
+              >
+                Confirmar Entrada
+              </Button>
+            )}
           </Card>
         </div>
 
@@ -230,7 +216,7 @@ export default function App() {
                 </div>
                 <div className="flex items-center gap-4">
                   <span className="text-xl font-black text-emerald-600">
-                    +{item.quantityAdjusted}
+                    +{item.priceAdjusted}
                   </span>
                   <Button
                     variant="ghost"
